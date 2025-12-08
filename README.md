@@ -282,11 +282,7 @@ python psig_matcher/experiments/run_experiment_1.py
 
 ### Experiment 1: PDF Convergence Analysis
 
-Measures how many signal samples are needed until the confidence interval converges:
-
-<p align="center">
-  <img src="graphs/number_of_samples_for_convergence.png" alt="Convergence Results" width="600"/>
-</p>
+Measures how many signal samples are needed until the confidence interval converges.
 
 ### Interactive Notebooks
 
@@ -459,7 +455,7 @@ Feel free to reach out to the authors for further inquiries or collaborations:
 |------|-------------|---------|
 | **Henry Gilbert** | Vanderbilt University | `henry.gilbert [at] vanderbilt [dot] edu` |
 | **Ruida Zeng** | Vanderbilt University | `ruida.zeng [at] vanderbilt [dot] edu` |
-| **Michael Sandborn** | Vanderbilt University | — |
+| **Michael Sandborn** | Vanderbilt University | `michael.sandborn [at] vanderbilt [dot] edu` |
 | **Jules White** | Vanderbilt University | `jules.white [at] vanderbilt [dot] edu` |
 | **Douglas C. Schmidt** | Vanderbilt University | `d.schmidt [at] vanderbilt [dot] edu` |
 
