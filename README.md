@@ -282,7 +282,11 @@ python psig_matcher/experiments/run_experiment_1.py
 
 ### Experiment 1: PDF Convergence Analysis
 
-Measures how many signal samples are needed until the confidence interval converges.
+Measures how many signal samples are needed until the confidence interval converges:
+
+<p align="center">
+  <img src="graphs/number_of_samples_for_convergence.png" alt="Convergence Results" width="700"/>
+</p>
 
 ### Interactive Notebooks
 
