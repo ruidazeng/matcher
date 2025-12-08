@@ -8,7 +8,9 @@
 
 *Henry Gilbert, Ruida Zeng, Michael Sandborn, Jules White, Douglas C. Schmidt*
 
-<a href='#citation'><img src='https://img.shields.io/badge/ISNA%202023-Paper-blue'></a>
+*Department of Computer Science, Vanderbilt University*
+
+<a href='docs/Cyber_Physical_Component_Verification_with_Global_Collision_Estimation_Through_Markov_Integration.pdf'><img src='https://img.shields.io/badge/Paper-PDF-red'></a>
 <a href='https://www.python.org/downloads/'><img src='https://img.shields.io/badge/Python-3.6+-green'></a>
 <a href='LICENSE'><img src='https://img.shields.io/badge/License-GPL_3.0-orange'></a>
 
@@ -31,7 +33,15 @@
 </p>
 
 > [!NOTE]
-> This repository accompanies our paper published at **ISNA 2023**: *"Cyber-Physical Component Verification with Global Collision Estimation Through Markov Integration"*. It is a research prototype demonstrating piezoelectric signature matching for anti-counterfeiting applications.
+> This repository accompanies our paper: *"Cyber-Physical Component Verification with Global Collision Estimation Through Markov Integration"*. The full paper is available in the [`docs/`](docs/) folder. It is a research prototype demonstrating piezoelectric signature matching for anti-counterfeiting applications.
+
+---
+
+## The Problem
+
+Counterfeiting creates a **cyber-physical information assurance problem** in cyber-physical systems (CPSs). According to the Global Brand Counterfeiting report, aggregated losses caused by counterfeiting are estimated to exceed **$1.82 Trillion USD**. More critically, counterfeit parts infiltrating mission-critical systems such as flight controllers pose tangible physical risks to society.
+
+Traditional verification methods fall short of creating provable connections to tie digital information (e.g., database entries) to physical part instances. Thus, a counterfeit part will always have a non-zero probability of being consumed undetected with traditional methods.
 
 ---
 
@@ -39,11 +49,20 @@
 
 ### The Core Idea
 
-Each manufactured part has a unique piezoelectric impedance "fingerprint" when measured across a frequency range. By modeling these signatures as **multivariate probability distributions**, we can:
+The fundamental approach involves attaching **piezoelectric transducers** to rigid physical parts and measuring the part's electromechanical response to an induced vibration over a range of frequencies. This creates an **impedance identity** that uniquely identifies the part.
+
+Key properties of piezoelectric signatures:
+
+1. **Physically Unclonable**: There are currently no known ways to manufacture a part with a *desired* impedance identity
+2. **Tamper-Evident**: If the sensor is removed or tampered with, the signature is destroyed
+3. **Quality-Linked**: Lower-quality counterfeits inherently create different signatures, forcing counterfeiters to manufacture at the same quality as legitimate producers
+
+By modeling these signatures as **multivariate probability distributions**, we can:
 
 1. **Register** authentic parts by measuring their signatures multiple times
 2. **Classify** new measurements against registered part distributions
 3. **Detect** counterfeits when signatures don't match any known distribution
+4. **Estimate** the global collision rate using Markov Integration
 
 <p align="center">
   <img src="images/signature_comparison.png" alt="Signature Comparison" width="600"/>
@@ -70,7 +89,7 @@ Each signature measurement contains three components:
 │                                                                     │
 │  ┌─────────────┐    ┌─────────────────┐    ┌──────────────────┐   │
 │  │    Part     │───▶│  PartInstance   │───▶│   Piezoelectric  │   │
-│  │  (e.g.SEN)  │    │   (e.g. x1)     │    │    Signature     │   │
+│  │ (e.g. SEN)  │    │   (e.g. x1)     │    │    Signature     │   │
 │  └─────────────┘    └─────────────────┘    └──────────────────┘   │
 │        │                    │                       │              │
 │        │                    │                       │              │
@@ -209,7 +228,7 @@ print(f"Generated 50 synthetic signatures with avg μ={noise_stats[0]:.4f}, σ={
 
 ### Statistical Framework
 
-The system uses a **probabilistic approach** to model signature uncertainty:
+The system uses a **probabilistic approach** based on **Markov Integration** to model signature uncertainty and estimate collision rates:
 
 <p align="center">
   <img src="images/methodology_diagram.png" alt="Methodology" width="750"/>
@@ -225,13 +244,13 @@ Each part's signal variations are modeled as a **multivariate normal distributio
 # Σ = covariance matrix capturing signal variability
 ```
 
-- Uses **t-distribution** for small sample sizes (n < 30)
-- Uses **normal distribution** for larger samples
+- Uses **t-distribution** for small sample sizes (n < 30) per statistical best practices
+- Uses **normal distribution** for larger samples (Central Limit Theorem)
 - Confidence intervals scale the estimated standard deviation
 
-#### 2. Monte Carlo Collision Estimation
+#### 2. Collision Rate Estimation via Markov Integration
 
-To estimate the probability that two different parts could produce matching signatures:
+The **collision rate** is defined as the probability that any two parts of the same type generate signals that correspond to more than one part instance. This represents the **global security** of a given part type.
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
@@ -245,6 +264,8 @@ To estimate the probability that two different parts could produce matching sign
 └──────────────────────────────────────────────────────────────────┘
 ```
 
+**Key insight from the paper**: The collision rate upper bound is **most commonly estimated at 0**, meaning counterfeits cannot increase collision rates above this bound even with perfect knowledge of part specifications.
+
 #### 3. Convergence Detection
 
 The algorithm automatically determines when enough samples have been collected:
@@ -257,12 +278,23 @@ The algorithm automatically determines when enough samples have been collected:
 
 ### Hyperparameters
 
-| Parameter | Description | Effect when ↓ |
-|-----------|-------------|---------------|
-| `meta_pdf_ci` | Confidence interval for meta distribution | Tighter bounds → Lower collision rate |
-| `part_pdf_ci` | Confidence interval for part distributions | Tighter bounds → Lower collision rate |
-| `confidence_bound` | Classification acceptance threshold | Higher threshold → Lower collision (but ↑ false negatives) |
-| `part_dim` | Number of frequency points used | Fewer points → Higher collision rate |
+The methodology is parameterized on a set of hyperparameters that allow explicit control over the trade-off between false negative rates and system security:
+
+| Parameter | Description | Effect when ↑ | Effect when ↓ |
+|-----------|-------------|---------------|---------------|
+| `meta_pdf_ci` | Confidence interval for meta distribution | Wider bounds → Higher collision rate | Tighter bounds → Lower collision rate |
+| `part_pdf_ci` | Confidence interval for part distributions | Wider bounds → Higher collision rate | Tighter bounds → Lower collision rate |
+| `confidence_bound` | Classification acceptance threshold | Stricter matching → Lower collision rate (but ↑ false negatives) | Looser matching → Higher collision rate |
+| `part_dim` | Number of frequency points used | More dimensions → Lower collision rate | Fewer dimensions → Higher collision rate |
+
+### Security Guarantees
+
+The proposed solution's assertions hold even when malicious actors obtain **perfect knowledge** (complete information regarding a part type, including specifications and manufacturing process). Since:
+
+1. A part's geometry cannot be derived from its latent signal representation
+2. The counterfeiting process always introduces more variance than the original manufacturing process
+
+A malicious actor is unable to increase the collision rate above the estimated upper bound.
 
 ---
 
@@ -302,7 +334,7 @@ From `process_validation.ipynb`:
 
 ```python
 # Base configuration
-part_type = 'CON'
+part_type = 'CONLID'
 part_dim = 5
 num_samples = 100
 meta_pdf_ci = 0.999
@@ -311,21 +343,11 @@ confidence_bound = 0.999
 
 # Run analysis
 con_parts = load_part_data(part_type)
-collision_rate = run_meta_markov_multivariant_analysis(
-    con_parts, part_dim, num_samples, 
-    meta_pdf_ci, part_pdf_ci, confidence_bound
+collision_rate = estimate_overlap_of_set_with_sample_signals(
+    con_parts, num_samples, confidence_bound
 )
 print(f"Upper collision rate: {collision_rate * 100:.2f}%")
-# Output: Upper collision rate: ~4.5%
 ```
-
-**Effect of Hyperparameters:**
-
-| Configuration | Collision Rate |
-|---------------|----------------|
-| Baseline (CI=0.999) | ~4.5% |
-| Lower CI (0.99) | ~0.26% |
-| Higher dimensions (10) | ~0.33% |
 
 ---
 
@@ -333,11 +355,17 @@ print(f"Upper collision rate: {collision_rate * 100:.2f}%")
 
 ```
 psig_matcher/data/
-├── CON/           # Container only measurements
+├── BEAM/          # Beam structure measurements
+├── BOX/           # Box container measurements
+├── BRK/           # Bracket measurements
 ├── CONLID/        # Container with glued lid measurements
+├── CONTAINER/     # Container only measurements
+├── FLG/           # Flange measurements
+├── IMP/           # Impeller measurements
 ├── LID/           # Lid only measurements
 ├── SEN/           # Sensor only measurements
-└── TUBE/          # Plastic tube measurements
+├── TUBE/          # Plastic tube measurements
+└── VNT/           # Vent measurements
 ```
 
 Each `.npy` file contains a NumPy array of shape `(N, 3)`:
@@ -347,7 +375,7 @@ Each `.npy` file contains a NumPy array of shape `(N, 3)`:
 
 ### Adding New Data
 
-1. Place Excel files (`.xls`) in the appropriate part type directory
+1. Place Excel files (`.xls`) or CSV files (`.csv`) in the appropriate part type directory
 2. Run the conversion script:
 
 ```bash
@@ -362,11 +390,13 @@ python psig_matcher/data_conversion.py
 
 ```
 matcher/
+├── docs/                     # Paper and documentation
+│   └── Cyber_Physical_Component_Verification_with_Global_Collision_Estimation_Through_Markov_Integration.pdf
 ├── psig_matcher/
 │   ├── __init__.py           # Constants and configuration
 │   ├── __main__.py           # CLI entry point
 │   ├── utils.py              # Core classes (Part, Signature, Comparator)
-│   ├── data_conversion.py    # XLS to NPY converter
+│   ├── data_conversion.py    # XLS/CSV to NPY converter
 │   ├── data/                 # Measurement data by part type
 │   └── experiments/
 │       ├── utilities.py      # Statistical helper functions
@@ -375,6 +405,7 @@ matcher/
 │       ├── data_analysis_1.ipynb
 │       └── process_validation.ipynb
 ├── graphs/                   # Generated visualizations
+├── images/                   # README images and diagrams
 ├── mlruns/                   # MLflow experiment tracking
 ├── setup.py                  # Package configuration
 ├── requirements.txt          # Dependencies
@@ -385,15 +416,21 @@ matcher/
 
 ## Supported Part Types
 
-Defined in `psig_matcher/__init__.py`:
+The following part types are available in the dataset:
 
 | Code | Description |
 |------|-------------|
-| `CON` | Container only measurements |
+| `BEAM` | Beam structure measurements |
+| `BOX` | Box container measurements |
+| `BRK` | Bracket measurements |
 | `CONLID` | Container with glued lid measurements |
+| `CONTAINER` | Container only measurements |
+| `FLG` | Flange measurements |
+| `IMP` | Impeller measurements |
 | `LID` | Lid only measurements |
 | `SEN` | Sensor only measurements |
 | `TUBE` | Plastic tube measurements |
+| `VNT` | Vent measurements |
 
 ---
 
@@ -402,6 +439,7 @@ Defined in `psig_matcher/__init__.py`:
 - **Frequency Range Dependency**: Signatures must be measured over compatible frequency ranges for comparison
 - **Sample Size**: Accurate PDF estimation requires multiple measurements per part instance
 - **Dimensionality**: Full 500-dimension analysis may require substantial sample sizes; dimensionality reduction is often necessary
+- **Sensitivity**: Piezoelectric sensors are highly sensitive and dependent on external factors, requiring multiple measurements for reliable classification
 - **Research Prototype**: Not production-ready; intended for experimental validation
 
 ---
@@ -430,18 +468,16 @@ If you use this work in your research, please cite our paper:
 >
 > Henry Gilbert, Ruida Zeng, Michael Sandborn, Jules White, Douglas C. Schmidt
 >
-> *2023 International Conference on Intelligent Systems and New Applications (ISNA 2023)*
-> March 17-19, 2023, Liverpool, UK
+> *Department of Computer Science, Vanderbilt University*
 
 ```bibtex
 @inproceedings{gilbert2023cyberphysical,
   title={Cyber-Physical Component Verification with Global Collision Estimation Through Markov Integration},
   author={Gilbert, Henry and Zeng, Ruida and Sandborn, Michael and White, Jules and Schmidt, Douglas C.},
-  booktitle={Proceedings of the 2023 International Conference on Intelligent Systems and New Applications (ISNA 2023)},
+  booktitle={Proceedings of the IEEE},
   year={2023},
-  month={March},
-  address={Liverpool, UK},
-  publisher={CEUR-WS}
+  organization={Vanderbilt University},
+  address={Nashville, TN, USA}
 }
 ```
 
